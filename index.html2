@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>[Sk Amar Shop] Admin | Brand Control</title>
+    <style>
+        :root { --accent: #00FF41; --bg: #050505; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', monospace; }
+        body { background: var(--bg); color: #fff; display: flex; }
+        
+        .sidebar { width: 260px; height: 100vh; border-right: 1px solid #222; padding: 40px; position: fixed; }
+        .sidebar h2 { color: var(--accent); font-size: 20px; margin-bottom: 40px; }
+        .nav-btn { color: #555; cursor: pointer; display: block; margin-bottom: 20px; font-size: 12px; font-weight: bold; text-transform: uppercase; }
+        .nav-btn.active { color: #fff; border-left: 2px solid var(--accent); padding-left: 10px; }
+
+        .main { margin-left: 260px; width: 100%; padding: 50px; }
+        .section { display: none; }
+        .section.active { display: block; }
+
+        .terminal { background: #0a0a0a; border: 1px solid #222; padding: 30px; margin-bottom: 40px; }
+        input, select { width: 100%; background: #000; border: 1px solid #333; padding: 12px; color: var(--accent); outline: none; margin-bottom: 15px; }
+        button { background: var(--accent); color: #000; border: none; padding: 15px; font-weight: bold; cursor: pointer; width: 100%; text-transform: uppercase; }
+        
+        table { width: 100%; border-collapse: collapse; }
+        th { text-align: left; font-size: 10px; color: #444; padding: 15px; border-bottom: 1px solid #222; }
+        td { padding: 15px; border-bottom: 1px solid #111; font-size: 11px; }
+        .order-card { border: 1px solid #222; padding: 20px; background: #080808; margin-bottom: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="sidebar">
+        <h2>[Sk] SYSTEM</h2>
+        <div class="nav-btn active" onclick="switchTab('inventory')">01. Inventory</div>
+        <div class="nav-btn" onclick="switchTab('orders')">02. Orders</div>
+    </div>
+
+    <div class="main">
+        <!-- Inventory Section -->
+        <div id="inventoryTab" class="section active">
+            <div class="terminal">
+                <input type="hidden" id="editId">
+                <input type="text" id="pName" placeholder="Product Identity">
+                <div style="display:flex; gap:10px">
+                    <input type="number" id="pOldPrice" placeholder="Regular Value (Strike)">
+                    <input type="number" id="pPrice" placeholder="Sale Value (Current)">
+                </div>
+                <input type="text" id="pImgUrl" placeholder="Image Asset URL">
+                <div style="display:flex; gap:10px">
+                    <select id="pCategory">
+                        <option value="T-Shirt">T-Shirt</option>
+                        <option value="Hoodie">Hoodie</option>
+                        <option value="Premium">Premium</option>
+                    </select>
+                    <select id="pStatus">
+                        <option value="Live">Available</option>
+                        <option value="Sold Out">Sold Out</option>
+                    </select>
+                </div>
+                <button onclick="saveProduct()">Deploy to Grid</button>
+            </div>
+            <table>
+                <thead><tr><th>NAME</th><th>VALUATION</th><th>CATEGORY</th><th>STATUS</th><th>CONTROL</th></tr></thead>
+                <tbody id="inventoryList"></tbody>
+            </table>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="ordersTab" class="section">
+            <h3 style="color:var(--accent); margin-bottom:20px">// LIVE_ORDERS_STREAM</h3>
+            <div id="ordersList"></div>
+        </div>
+    </div>
+
+    <script>
+        const DB_KEY = "SK_LIVE_DATABASE";
+        const ORDER_KEY = "SK_ORDERS_DATABASE";
+
+        function switchTab(tab) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(tab + 'Tab').classList.add('active');
+            event.target.classList.add('active');
+            if(tab === 'orders') loadOrders(); else loadInventory();
+        }
+
+        function saveProduct() {
+            const id = document.getElementById('editId').value;
+            const name = document.getElementById('pName').value;
+            const oldPrice = document.getElementById('pOldPrice').value;
+            const price = document.getElementById('pPrice').value;
+            const imgUrl = document.getElementById('pImgUrl').value;
+            const category = document.getElementById('pCategory').value;
+            const status = document.getElementById('pStatus').value;
+
+            if(!name || !price || !imgUrl) return alert("System Error");
+
+            let db = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+            if(id) {
+                db = db.map(p => p.id == id ? {id, name, oldPrice, price: parseInt(price), imgUrl, category, status} : p);
+            } else {
+                db.push({id: Date.now(), name, oldPrice, price: parseInt(price), imgUrl, category, status});
+            }
+            localStorage.setItem(DB_KEY, JSON.stringify(db));
+            location.reload();
+        }
+
+        function loadInventory() {
+            const list = document.getElementById('inventoryList');
+            const db = JSON.parse(localStorage.getItem(DB_KEY)) || [];
+            list.innerHTML = db.map(p => `
+                <tr>
+                    <td>${p.name}</td>
+                    <td>৳${p.price}</td>
+                    <td>${p.category}</td>
+                    <td>${p.status}</td>
+                    <td>
+                        <span onclick="editAsset(${p.id})" style="cursor:pointer; color:#888">EDIT</span> | 
+                        <span onclick="deleteAsset(${p.id})" style="cursor:pointer; color:red">DEL</span>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function editAsset(id) {
+            const p = JSON.parse(localStorage.getItem(DB_KEY)).find(i => i.id == id);
+            document.getElementById('editId').value = p.id;
+            document.getElementById('pName').value = p.name;
+            document.getElementById('pOldPrice').value = p.oldPrice || '';
+            document.getElementById('pPrice').value = p.price;
+            document.getElementById('pImgUrl').value = p.imgUrl;
+            document.getElementById('pCategory').value = p.category;
+            document.getElementById('pStatus').value = p.status;
+        }
+
+        function deleteAsset(id) {
+            let db = JSON.parse(localStorage.getItem(DB_KEY)).filter(i => i.id != id);
+            localStorage.setItem(DB_KEY, JSON.stringify(db));
+            loadInventory();
+        }
+
+        function loadOrders() {
+            const list = document.getElementById('ordersList');
+            const orders = JSON.parse(localStorage.getItem(ORDER_KEY)) || [];
+            list.innerHTML = orders.map(o => `
+                <div class="order-card">
+                    <p style="color:var(--accent)">#ID: ${o.id} | ${o.date}</p>
+                    <p><b>Pioneer:</b> ${o.customer} | <b>Phone:</b> ${o.phone}</p>
+                    <p><b>Address:</b> ${o.address}</p>
+                    <p style="border-top:1px solid #222; margin-top:10px; padding-top:10px"><b>Assets:</b> ${o.items.map(i => i.name).join(', ')}</p>
+                    <p><b>Total:</b> ৳${o.total}</p>
+                    <button onclick="clearOrder(${o.id})" style="background:#ff4444; border:none; color:white; padding:5px; margin-top:10px; cursor:pointer">Mark Complete</button>
+                </div>
+            `).join('');
+        }
+
+        function clearOrder(id) {
+            let orders = JSON.parse(localStorage.getItem(ORDER_KEY)).filter(o => o.id != id);
+            localStorage.setItem(ORDER_KEY, JSON.stringify(orders));
+            loadOrders();
+        }
+
+        window.onload = loadInventory;
+    </script>
+</body>
+</html>
